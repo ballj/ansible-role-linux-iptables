@@ -1,0 +1,123 @@
+# {{ ansible_managed }}
+
+{% macro iptables(print_table) %}
+{% for rule in iptables_rules | list %}
+{%   if rule.table is not defined %}
+{%     set table = 'filter' %}
+{%   else %}
+{%     set table = rule.table %}
+{%   endif %}
+{%   if rule.state == 'present' and ( print_table == table ) %}
+{%      for log_loop in 0,1 %}
+{%        if (rule.action != 'none' and log_loop == 1) or ( rule.log is defined and log_loop == 0 and rule.log == true) %}
+-A {{ rule.chain | upper }}
+{%-         if rule.input_interface is defined %}
+{%-           if rule.input_interface.startswith('!') %}
+ ! -i {{ rule.input_interface[1:] | lower }}
+{%-           else %}
+ -i {{ rule.input_interface | lower }}
+{%-           endif %}
+{%-         endif %}
+{%-         if rule.output_interface is defined %}
+{%-           if rule.output_interface.startswith('!') %}
+ ! -o {{ rule.output_interface[1:] | lower }}
+{%-           else %}
+ -o {{ rule.output_interface | lower }}
+{%-           endif %}
+{%-         endif %}
+{%-         if rule.module is defined %}
+ -m {{ rule.module | lower }}
+{%-           if rule.module == 'mac' and rule.source_mac is defined %}
+ --mac-source {{ rule.source_mac }}
+{%-           endif %}
+{%-         endif %}
+{%-         if rule.protocol is defined %}
+ -p {{ rule.protocol | lower }}
+{%-           if rule.protocol == 'icmp' and rule.icmp_type is defined %}
+ --icmp-type {{ rule.icmp_type | lower }}
+{%-           endif %}
+{%-         endif %}
+{%-         if rule.source_address is defined %}
+{%-           if rule.source_address.startswith('!') %}
+{%-             if rule.source_address[1:] | upper in ipset_rules | map(attribute="name") | map('upper') %}
+ -m set ! --match-set {{ rule.source_address[1:] | upper }} src
+{%-             endif %}
+{%-           else %}
+{%-             if rule.source_address | upper in ipset_rules | map(attribute="name") | map('upper') %}
+ -m set --match-set {{ rule.source_address | upper }} src
+{%-             else %}
+ -s {{ rule.source_address }}
+{%-             endif %}
+{%-           endif %}
+{%-         endif %}
+{%-         if rule.source_port is defined %}
+ --sport {{ rule.source_port }}
+{%-         endif %}
+{%-         if rule.source_ports is defined %}
+ -m multiport --sports {{ rule.source_ports|join(',') }}
+{%-         endif %}
+{%-         if rule.destination_address is defined %}
+{%            if rule.destination_address.startswith('!') %}
+{%-             if rule.destination_address[1:] | upper in ipset_rules | map(attribute="name") | map('upper') %}
+ -m set ! --match-set {{ rule.destination_address[1:] | upper }} dst
+{%-             endif %}
+{%-           else %}
+{%-             if rule.destination_address | upper in ipset_rules | map(attribute="name") | map('upper') %}
+ -m set --match-set {{ rule.destination_address | upper }} dst
+{%-             else %}
+ -d {{ rule.destination_address }}
+{%-             endif %}
+{%-           endif %}
+{%-         endif %}
+{%-         if rule.destination_port is defined %}
+{%-           if (rule.destination_port|string).startswith('!') %}
+ ! --dport {{ rule.destination_port[1:] }}
+{%-           else %}
+ --dport {{ rule.destination_port }}
+{%-           endif %}
+{%-         endif %}
+{%-         if rule.destination_ports is defined %}
+ -m multiport --dports {{ rule.destination_ports|join(',') }}
+{%-         endif %}
+{%-         if rule.states is defined %}
+ {{  iptables_connection_state_mode  }} {{ rule.states|join(',')|upper }}
+{%-         endif %}
+{%-         if rule.log is defined and rule.log == true and log_loop == 0 %}
+ -j LOG
+{%-         else %}
+ -j {{ rule.action|upper }}
+{%-         endif %}
+{%-         if rule.nat_destination is defined and log_loop == 1 %}
+ --to-destination {{ rule.nat_destination }}
+{%-         endif %}
+{%-         if rule.nat_port is defined and log_loop == 1 %}
+ --to-port {{ rule.nat_port }}
+{%-         endif %}
+{%-         if rule.action == 'reject' and rule.reject_with is defined %}
+ --reject-with {{ rule.reject_with | lower }}
+{%          else %} {{ ' ' }}
+{%         endif %}
+{%       endif %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+{% endmacro %}
+
+*nat
+
+{{ iptables('nat') }}
+
+COMMIT
+
+*filter
+:INPUT {{ iptables_default_input_policy | upper }}
+:FORWARD {{ iptables_default_forward_policy | upper }}
+:OUTPUT {{ iptables_default_output_policy | upper }}
+
+{% for chain in iptables_rules | map(attribute="chain") | unique | sort | difference(['input','output','forward'])%}
+-N {{ chain | upper }}
+{% endfor %}
+
+{{ iptables('filter') }}
+
+COMMIT

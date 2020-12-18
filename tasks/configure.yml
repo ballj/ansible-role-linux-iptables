@@ -1,0 +1,32 @@
+---
+- name: 'Configure | Ensuring {{ ipset_config_file | dirname }} Directory Exists'
+  file:
+    path: "{{ ipset_config_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0644
+  become: true
+
+- name: 'Configure | Generating ipset Rules {{ ipset_config_file }}'
+  template:
+    src: 'ipset.j2'
+    dest: '{{ ipset_config_file }}'
+  become: true
+  notify: 'reload firewall rules'
+
+- name: 'Configure | Ensure {{ iptables_config_file | dirname }} Directory Exists'
+  file:
+    path: '{{ iptables_config_file | dirname }}'
+    state: directory
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+
+- name: 'Configure | Generating iptable rules {{ iptables_config_file }}'
+  template:
+    src: 'iptables.j2'
+    dest: '{{ iptables_config_file }}'
+  become: true
+  notify: 'reload firewall rules'

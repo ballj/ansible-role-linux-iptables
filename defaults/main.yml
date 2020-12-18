@@ -1,0 +1,10 @@
+---
+ipset_config_file: /etc/ipset/ipset.rules
+iptables_config_file: /etc/iptables/iptables.rules
+
+ipset_rules: []
+iptables_rules: []
+iptables_connection_state_mode: '-m conntrack --ctstate'
+iptables_default_input_policy: ACCEPT
+iptables_default_forward_policy: ACCEPT
+iptables_default_output_policy: ACCEPT

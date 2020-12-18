@@ -1,0 +1,6 @@
+---
+- name: 'Debian | Installing ipset'
+  apt:
+    name: 'ipset'
+    state: 'present'
+  become: true

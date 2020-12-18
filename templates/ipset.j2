@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+{% if ipset_rules %}
+{% for ipset_rule in ipset_rules %}
+create {{ ipset_rule.name | upper }} {{ ipset_rule.type }} family inet hashsize 1024 maxelem 65536
+{% if ipset_rule.addresses is defined %}
+{% for address in ipset_rule.addresses %}
+add {{ ipset_rule.name | upper }} {{ address }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}

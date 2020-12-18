@@ -1,0 +1,16 @@
+---
+- name: 'reload firewall rules'
+  shell: >
+    iptables -P INPUT ACCEPT &&
+    iptables -P FORWARD ACCEPT &&
+    iptables -P OUTPUT ACCEPT &&
+    iptables -t nat -F &&
+    iptables -t mangle -F &&
+    iptables -F &&
+    iptables -X &&
+    ipset destroy &&
+    ipset restore -f {{ ipset_config_file }} &&
+    iptables-restore {{ iptables_config_file }} &&
+    cp {{ ipset_config_file }} {{ ipset_config_file }}.bak &&
+    cp {{ iptables_config_file }} {{ iptables_config_file }}.bak
+  become: yes
